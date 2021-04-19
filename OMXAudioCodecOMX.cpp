@@ -82,8 +82,8 @@ bool COMXAudioCodecOMX::Open(COMXStreamInfo &hints, enum PCMLayout layout)
   m_pCodecContext->debug = 0;
   m_pCodecContext->workaround_bugs = 1;
 
-  if (pCodec->capabilities & CODEC_CAP_TRUNCATED)
-    m_pCodecContext->flags |= CODEC_FLAG_TRUNCATED;
+  if (pCodec->capabilities & AV_CODEC_CAP_TRUNCATED)
+    m_pCodecContext->flags |= AV_CODEC_FLAG_TRUNCATED;
 
   m_channels = 0;
   m_pCodecContext->channels = hints.channels;
@@ -115,7 +115,7 @@ bool COMXAudioCodecOMX::Open(COMXStreamInfo &hints, enum PCMLayout layout)
   if( hints.extradata && hints.extrasize > 0 )
   {
     m_pCodecContext->extradata_size = hints.extrasize;
-    m_pCodecContext->extradata = (uint8_t*)m_dllAvUtil.av_mallocz(hints.extrasize + FF_INPUT_BUFFER_PADDING_SIZE);
+    m_pCodecContext->extradata = (uint8_t*)m_dllAvUtil.av_mallocz(hints.extrasize + AV_INPUT_BUFFER_PADDING_SIZE);
     memcpy(m_pCodecContext->extradata, hints.extradata, hints.extrasize);
   }
 
@@ -164,6 +164,11 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize, double dts, double pts)
   if (!m_pCodecContext) return -1;
 
   AVPacket avpkt;
+  if (!m_iBufferOutputUsed)
+  {
+    m_dts = dts;
+    m_pts = pts;
+  }
   if (m_bGotFrame)
     return 0;
 
@@ -193,12 +198,6 @@ int COMXAudioCodecOMX::Decode(BYTE* pData, int iSize, double dts, double pts)
              m_pFrame1->linesize[0],
              m_pFrame1->data[0], m_pFrame1->data[1], m_pFrame1->data[2], m_pFrame1->data[3], m_pFrame1->data[4], m_pFrame1->data[5], m_pFrame1->data[6], m_pFrame1->data[7]
              );
-  }
-
-  if (!m_iBufferOutputUsed)
-  {
-    m_dts = dts;
-    m_pts = pts;
   }
   return iBytesUsed;
 }
@@ -235,7 +234,7 @@ int COMXAudioCodecOMX::GetData(BYTE** dst, double &dts, double &pts)
 
   if (m_iBufferOutputAlloced < m_iBufferOutputUsed + outputSize)
   {
-     m_pBufferOutput = (BYTE*)m_dllAvUtil.av_realloc(m_pBufferOutput, m_iBufferOutputUsed + outputSize + FF_INPUT_BUFFER_PADDING_SIZE);
+     m_pBufferOutput = (BYTE*)m_dllAvUtil.av_realloc(m_pBufferOutput, m_iBufferOutputUsed + outputSize + AV_INPUT_BUFFER_PADDING_SIZE);
      m_iBufferOutputAlloced = m_iBufferOutputUsed + outputSize;
   }
 

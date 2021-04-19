@@ -1,9 +1,30 @@
+Note: omxplayer is being deprecated and resources are directed at improving vlc.
+
+This is due to:
+omxplayer uses openvg for OSD and subtitles which isn't supported on Pi4.
+omxplayer uses openmax which has been deprecated for a long time and isn't supported with 64-bit kernels.
+omxplayer does not support software decode
+omxplayer does not support advanced subtitles
+omxplayer does not support playback from ISO files.
+omxplayer does not integrate with the X desktop
+
+Please try using vlc. If there are features of omxplayer that vlc does not handle then try reporting [here](https://github.com/RPi-Distro/vlc/issues).
+
 omxplayer(1) -- Raspberry Pi command line OMX player
 ====================================================
 
-OMXPlayer is a commandline OMX player for the Raspberry Pi. It was developed as
-a testbed for the XBMC Raspberry PI implementation and is quite handy to use
-standalone. 
+OMXPlayer is a command-line video player for the Raspberry Pi. It can play
+video directly from the command line and **does not require a
+[desktop](https://en.wikipedia.org/wiki/Desktop_environment)**. OMXPlayer
+leverages the [OpenMAX](https://en.wikipedia.org/wiki/OpenMAX)
+[API](https://en.wikipedia.org/wiki/Application_programming_interface) to make
+use of the hardware video decoder in the
+[GPU](https://en.wikipedia.org/wiki/Graphics_processing_unit). Hardware
+acceleration along with direct command-line use on
+[ARM](https://en.wikipedia.org/wiki/ARM_architecture) silicon allows ultra
+low overhead, low power video playback. OMXPlayer was developed as a testbed
+for the [XBMC](https://en.wikipedia.org/wiki/Kodi_(software)) Raspberry Pi
+implementation and is quite handy to use standalone.
 
 ## DOWNLOADING
 
@@ -18,14 +39,14 @@ if you modify the structure of README.md!
 ## COMPILING
 
 Run this script which will install build dependency packages,
-including g++ 4.7, and update firmware
+including g++, and update firmware
 
     ./prepare-native-raspbian.sh
 
 Build with
 
     make ffmpeg
-    make
+    make -j$(nproc)
 
 Install with
     
@@ -55,7 +76,7 @@ Usage: omxplayer [OPTIONS] [FILE]
     -v  --version               Print version info
     -k  --keys                  Print key bindings
     -n  --aidx  index           Audio stream index    : e.g. 1
-    -o  --adev  device          Audio out device      : e.g. hdmi/local/both
+    -o  --adev  device          Audio out device      : e.g. hdmi/local/both/alsa[:device]
     -i  --info                  Dump stream format and exit
     -I  --with-info             dump stream format before playback
     -s  --stats                 Pts and buffer stats
@@ -327,8 +348,7 @@ Skip to the previous chapter.
 ##### Play
 
 Play the video. If the video is playing, it has no effect, if it is
-paused it will play from current position and if it is stopped it will
-play from the beginning.
+paused it will play from current position.
 
    Params       |   Type
 :-------------: | -------
@@ -354,7 +374,7 @@ paused it will start playing.
 
 ##### Stop
 
-Stops the video.
+Stops the video. This has the same effect as Quit (terminates the omxplayer instance).
 
    Params       |   Type
 :-------------: | -------
@@ -379,6 +399,23 @@ Seeks to a specific location in the file.  This is an *absolute* seek.
  1              | `string`          | Path (not currently used)
  2              | `int64`           | Position to seek to, in microseconds
  Return         | `null` or `int64` | If the supplied position is invalid, `null` is returned, otherwise the position (in microseconds) is returned
+
+##### SetAlpha
+
+Set the alpha transparency of the player [0-255].
+
+   Params       |   Type            | Description
+:-------------: | ----------------- | ------------------------------------
+ 1              | `string`          | Path (not currently used)
+ 2              | `int64`           | Alpha value, 0-255
+
+##### SetLayer
+
+Seeks the video playback layer.
+
+   Params       |   Type            | Description
+:-------------: | ----------------- | ------------------------------------
+ 1              | `int64`           | Layer to switch to
 
 ##### Mute
 
@@ -582,6 +619,14 @@ Millibels can be converted to/from acceptable values using the following:
  Return         | `double`  | Current volume
 
 [MPRIS_volume]: http://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Volume
+
+##### OpenUri (w)
+
+Restart and open another URI for playing.
+
+   Params       |   Type    | Description
+:-------------: | --------- | --------------------------------
+1               | `string`  | URI to play
 
 ##### Position (ro)
 

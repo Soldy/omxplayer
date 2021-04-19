@@ -34,6 +34,7 @@ extern "C" {
 #include <libavutil/avutil.h>
 };
 
+#include "revision.h"
 #include "OMXStreamInfo.h"
 
 #include "utils/log.h"
@@ -79,7 +80,7 @@ long              m_Volume              = 0;
 long              m_Amplification       = 0;
 bool              m_NativeDeinterlace   = false;
 bool              m_HWDecode            = false;
-bool              m_osd                 = true;
+bool              m_osd                 = !is_model_pi4() && !is_fkms_active();
 bool              m_no_keys             = false;
 std::string       m_external_subtitles_path;
 bool              m_has_external_subtitles = false;
@@ -706,10 +707,24 @@ int main(int argc, char *argv[])
         m_stats = true;
         break;
       case 'o':
-        m_config_audio.device = optarg;
-        if(m_config_audio.device != "local" && m_config_audio.device != "hdmi" && m_config_audio.device != "both")
         {
-          printf("Bad argument for -%c: Output device must be `local', `hdmi' or `both'\n", c);
+          CStdString str = optarg;
+          int colon = str.Find(':');
+          if(colon >= 0)
+          {
+            m_config_audio.device = str.Mid(0, colon);
+            m_config_audio.subdevice = str.Mid(colon + 1, str.GetLength() - colon);
+          }
+          else
+          {
+            m_config_audio.device = str;
+            m_config_audio.subdevice = "";
+          }
+        }
+        if(m_config_audio.device != "local" && m_config_audio.device != "hdmi" && m_config_audio.device != "both" &&
+           m_config_audio.device != "alsa")
+        {
+          printf("Bad argument for -%c: Output device must be `local', `hdmi', `both' or `alsa'\n", c);
           return EXIT_FAILURE;
         }
         m_config_audio.device = "omx:" + m_config_audio.device;
@@ -1010,6 +1025,8 @@ int main(int argc, char *argv[])
     m_keyboard->setDbusName(m_dbus_name);
   }
 
+  change_file:
+
   if(!m_omx_reader.Open(m_filename.c_str(), m_dump_format, m_config_audio.is_live, m_timeout, m_cookie.c_str(), m_user_agent.c_str(), m_lavfdopts.c_str(), m_avdict.c_str()))
     goto do_exit;
 
@@ -1018,8 +1035,8 @@ int main(int argc, char *argv[])
 
   m_has_video     = m_omx_reader.VideoStreamCount();
   m_has_audio     = m_audio_index_use < 0 ? false : m_omx_reader.AudioStreamCount();
-  m_has_subtitle  = m_has_external_subtitles ||
-                    m_omx_reader.SubtitleStreamCount();
+  m_has_subtitle  = !is_model_pi4() && !is_fkms_active() &&
+                     (m_has_external_subtitles || m_omx_reader.SubtitleStreamCount());
   m_loop          = m_loop && m_omx_reader.CanSeek();
 
   if (m_audio_extension)
@@ -1106,6 +1123,8 @@ int main(int argc, char *argv[])
                                 m_config_video.display, m_config_video.layer + 1,
                                 m_av_clock))
       goto do_exit;
+    if(m_config_video.dst_rect.x2 > 0 && m_config_video.dst_rect.y2 > 0)
+        m_player_subtitles.SetSubtitleRect(m_config_video.dst_rect.x1, m_config_video.dst_rect.y1, m_config_video.dst_rect.x2, m_config_video.dst_rect.y2);
   }
 
   if(m_has_subtitle)
@@ -1133,6 +1152,9 @@ int main(int argc, char *argv[])
     else
       m_config_audio.device = "omx:local";
   }
+
+  if(m_config_audio.device == "omx:alsa" && m_config_audio.subdevice.empty())
+    m_config_audio.subdevice = "default";
 
   if ((m_config_audio.hints.codec == AV_CODEC_ID_AC3 || m_config_audio.hints.codec == AV_CODEC_ID_EAC3) &&
       m_BcmHost.vc_tv_hdmi_audio_supported(EDID_AudioFormat_eAC3, 2, EDID_AudioSampleRate_e44KHz, EDID_AudioSampleSize_16bit ) != 0)
@@ -1181,6 +1203,15 @@ int main(int argc, char *argv[])
 
     switch(result.getKey())
     {
+     case KeyConfig::ACTION_CHANGE_FILE:
+        FlushStreams(DVD_NOPTS_VALUE);
+        m_omx_reader.Close();
+        m_player_subtitles.Close();
+        m_player_video.Close();
+        m_player_audio.Close();
+        m_filename = result.getWinArg();
+        goto change_file;
+        break;
       case KeyConfig::ACTION_SHOW_INFO:
         m_tv_show_info = !m_tv_show_info;
         vc_tv_show_info(m_tv_show_info);
@@ -1414,6 +1445,9 @@ int main(int argc, char *argv[])
       case KeyConfig::ACTION_SET_ALPHA:
           m_player_video.SetAlpha(result.getArg());
           break;
+      case KeyConfig::ACTION_SET_LAYER:
+          m_player_video.SetLayer(result.getArg());
+          break;
       case KeyConfig::ACTION_PLAY:
         m_Pause=false;
         if(m_has_subtitle)
@@ -1461,6 +1495,7 @@ int main(int argc, char *argv[])
       case KeyConfig::ACTION_MOVE_VIDEO:
         sscanf(result.getWinArg(), "%f %f %f %f", &m_config_video.dst_rect.x1, &m_config_video.dst_rect.y1, &m_config_video.dst_rect.x2, &m_config_video.dst_rect.y2);
         m_player_video.SetVideoRect(m_config_video.src_rect, m_config_video.dst_rect);
+        m_player_subtitles.SetSubtitleRect(m_config_video.dst_rect.x1, m_config_video.dst_rect.y1, m_config_video.dst_rect.x2, m_config_video.dst_rect.y2);
         break;
       case KeyConfig::ACTION_CROP_VIDEO:
         sscanf(result.getWinArg(), "%f %f %f %f", &m_config_video.src_rect.x1, &m_config_video.src_rect.y1, &m_config_video.src_rect.x2, &m_config_video.src_rect.y2);
@@ -1732,13 +1767,6 @@ int main(int argc, char *argv[])
 
     if(m_omx_reader.IsEof() && !m_omx_pkt)
     {
-      // demuxer EOF, but may have not played out data yet
-      if ( (m_has_video && m_player_video.GetCached()) ||
-           (m_has_audio && m_player_audio.GetCached()) )
-      {
-        OMXClock::OMXSleep(10);
-        continue;
-      }
       if (!m_send_eos && m_has_video)
         m_player_video.SubmitEOS();
       if (!m_send_eos && m_has_audio)

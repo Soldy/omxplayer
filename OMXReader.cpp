@@ -118,7 +118,14 @@ static int dvd_file_read(void *h, uint8_t* buf, int size)
     return -1;
 
   XFILE::CFile *pFile = (XFILE::CFile *)h;
-  return pFile->Read(buf, size);
+  int ret = pFile->Read(buf, size);
+
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(58,12,100)
+  if (ret == 0 && pFile->IsEOF())
+    ret = AVERROR_EOF;
+#endif
+
+  return ret;
 }
 
 static offset_t dvd_file_seek(void *h, offset_t pos, int whence)
@@ -207,10 +214,13 @@ bool OMXReader::Open(std::string filename, bool dump_format, bool live /* =false
       m_filename = m_filename.substr(0, idx);
 
     // Enable seeking if http, ftp
-    if(!live && (m_filename.substr(0,7) == "http://" || m_filename.substr(0,6) == "ftp://" ||
-       m_filename.substr(0,7) == "sftp://" || m_filename.substr(0,6) == "smb://"))
+    if(m_filename.substr(0,7) == "http://" || m_filename.substr(0,6) == "ftp://" ||
+       m_filename.substr(0,7) == "sftp://" || m_filename.substr(0,6) == "smb://")
     {
-       av_dict_set(&d, "seekable", "1", 0);
+       if(!live)
+       {
+          av_dict_set(&d, "seekable", "1", 0);
+       }
        if(!cookie.empty())
        {
           av_dict_set(&d, "cookies", cookie.c_str(), 0);
@@ -1022,7 +1032,7 @@ OMXPacket *OMXReader::AllocPacket(int size)
   {
     memset(pkt, 0, sizeof(OMXPacket));
 
-    pkt->data = (uint8_t*) malloc(size + FF_INPUT_BUFFER_PADDING_SIZE);
+    pkt->data = (uint8_t*) malloc(size + AV_INPUT_BUFFER_PADDING_SIZE);
     if(!pkt->data)
     {
       free(pkt);
@@ -1030,7 +1040,7 @@ OMXPacket *OMXReader::AllocPacket(int size)
     }
     else
     {
-      memset(pkt->data + size, 0, FF_INPUT_BUFFER_PADDING_SIZE);
+      memset(pkt->data + size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
       pkt->size = size;
       pkt->dts  = DVD_NOPTS_VALUE;
       pkt->pts  = DVD_NOPTS_VALUE;

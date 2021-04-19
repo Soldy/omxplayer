@@ -217,6 +217,10 @@ bool COMXVideo::PortSettingsChanged()
   configDisplay.num = m_config.display;
   configDisplay.layer = m_config.layer;
   configDisplay.transform = m_transform;
+
+  if (!(m_config.dst_rect.x2 > m_config.dst_rect.x1 && m_config.dst_rect.y2 > m_config.dst_rect.y1))
+    configDisplay.alpha |= OMX_DISPLAY_ALPHA_FLAGS_DISCARD_LOWER_LAYERS;
+
   omx_err = m_omx_render.SetConfig(OMX_IndexConfigDisplayRegion, &configDisplay);
   if(omx_err != OMX_ErrorNone)
   {
@@ -723,8 +727,8 @@ int COMXVideo::Decode(uint8_t *pData, int iSize, double dts, double pts)
   if( m_drop_state || !m_is_open )
     return true;
 
-    unsigned int demuxer_bytes = (unsigned int)iSize;
-    uint8_t *demuxer_content = pData;
+  unsigned int demuxer_bytes = (unsigned int)iSize;
+  uint8_t *demuxer_content = pData;
 
   if (demuxer_content && demuxer_bytes > 0)
   {
@@ -876,6 +880,28 @@ void COMXVideo::SetVideoRect()
   }
 }
 
+void COMXVideo::SetLayer(int layer)
+{
+  CSingleLock lock (m_critSection);
+  if(!m_is_open)
+    return;
+
+  OMX_ERRORTYPE omx_err;
+  OMX_CONFIG_DISPLAYREGIONTYPE configDisplay;
+  OMX_INIT_STRUCTURE(configDisplay);
+
+  configDisplay.nPortIndex = m_omx_render.GetInputPort();
+  configDisplay.set = OMX_DISPLAY_SET_LAYER;
+  configDisplay.layer = layer;
+
+  omx_err = m_omx_render.SetConfig(OMX_IndexConfigDisplayRegion, &configDisplay);
+  if(omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "COMXVideo::LAYER::Open error OMX_IndexConfigDisplayRegion omx_err(0x%08x)\n", omx_err);
+  }
+
+}
+
 void COMXVideo::SetAlpha(int alpha)
 {
   CSingleLock lock (m_critSection);
@@ -890,6 +916,9 @@ void COMXVideo::SetAlpha(int alpha)
   configDisplay.set = OMX_DISPLAY_SET_ALPHA;
   configDisplay.alpha = alpha;
 
+  if (!(m_config.dst_rect.x2 > m_config.dst_rect.x1 && m_config.dst_rect.y2 > m_config.dst_rect.y1))
+    configDisplay.alpha |= OMX_DISPLAY_ALPHA_FLAGS_DISCARD_LOWER_LAYERS;
+
   omx_err = m_omx_render.SetConfig(OMX_IndexConfigDisplayRegion, &configDisplay);
   if(omx_err != OMX_ErrorNone)
   {
@@ -897,10 +926,6 @@ void COMXVideo::SetAlpha(int alpha)
   }
 
 }
-
-
-
-
 
 int COMXVideo::GetInputBufferSize()
 {
