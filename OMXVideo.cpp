@@ -386,7 +386,7 @@ bool COMXVideo::Open(OMXClock *clock, const OMXVideoConfig &config)
 
   switch (m_config.hints.codec)
   {
-    case AV_CODEC_ID_H264:
+    case AV_CODEC_ID_H265:
     {
         decoder_name = OMX_H265_DECODER;
         m_codingType = OMX_VIDEO_CodingAVC;
