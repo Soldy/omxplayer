@@ -14,36 +14,33 @@ if [ -z `which sudo` ] ; then
     apt-get install -y sudo
 fi
     
-echo "Checking dpkg database for missing packages"
-REQUIRED_PKGS="ca-certificates git-core subversion binutils libva1 libpcre3-dev libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libdbus-1-dev libssl-dev libssh-dev libsmbclient-dev gcc-4.7 g++-4.7 sed pkg-config"
-MISSING_PKGS=""
-for pkg in $REQUIRED_PKGS
-do
-	check_dpkg_installed $pkg
-done
-echo ""
-if [ ! -z "$MISSING_PKGS" ]; then
-	echo "You are missing required packages."
-	echo "Run sudo apt-get update && sudo apt-get install $MISSING_PKGS"
-	exit 1
-else
-	echo "All dependencies met"
+#echo "Checking dpkg database for missing packages"
+#REQUIRED_PKGS="ca-certificates git-core subversion binutils libva1 libpcre3-dev libidn11-dev libboost1.50-dev libfreetype6-dev libssl-dev libssh-dev libsmbclient-dev gcc g++- sed pkg-config"
+#MISSING_PKGS=""
+#for pkg in $REQUIRED_PKGS
+#do
+#	check_dpkg_installed $pkg
+#done
+#echo ""
+#if [ ! -z "$MISSING_PKGS" ]; then
+#	echo "You are missing required packages."
+#	echo "Run sudo apt-get update && sudo apt-get install $MISSING_PKGS"
+#	exit 1
+#
+#	echo "All dependencies met"
 fi
 
-if [ -e "patch.flag" ]
-then
-	echo "Makefiles already patched, nothing to do here"
-else
-	echo "Patching makefiles..."
-	echo "FLOAT=hard
 
-CFLAGS +=  -mfloat-abi=hard -mcpu=arm1176jzf-s -fomit-frame-pointer -mabi=aapcs-linux -mtune=arm1176jzf-s -mfpu=vfp -Wno-psabi -mno-apcs-stack-check -O3 -mstructure-size-boundary=32 -mno-sched-prolog -march=armv6zk `pkg-config dbus-1 --cflags`
+echo "Patching makefiles..."
+echo "FLOAT=hard
+
+CFLAGS +=   -fomit-frame-pointer -mabi=aapcs-linux -Wno-psabi -mno-apcs-stack-check -O3 -mstructure-size-boundary=32 -mno-sched-prolog
 
 BUILDROOT	:=/usr/local/src/omxplayer
 TOOLCHAIN	:=/usr/
 LD			:= \$(TOOLCHAIN)/bin/ld
-CC			:= \$(TOOLCHAIN)/bin/gcc-4.7
-CXX       	:= \$(TOOLCHAIN)/bin/g++-4.7
+CC			:= \$(TOOLCHAIN)/bin/gcc
+CXX       	:= \$(TOOLCHAIN)/bin/g++-
 OBJDUMP		:= \$(TOOLCHAIN)/bin/objdump
 RANLIB		:= \$(TOOLCHAIN)/bin/ranlib
 STRIP		:= \$(TOOLCHAIN)/bin/strip
@@ -55,7 +52,6 @@ INCLUDES	+= -I/opt/vc/include/interface/vcos/pthreads \
 			-I/opt/vc/include \
 			-I/opt/vc/include/interface/vmcs_host \
 			-I/opt/vc/include/interface/vmcs_host/linux \
-			-I/usr/lib/arm-linux-gnueabihf/dbus-1.0/include \
 			-I/usr/include \
 			-I/usr/include/freetype2" > Makefile.include
 
@@ -78,8 +74,7 @@ uninstall:
 	rm -rf /usr/share/doc/omxplayer
 	rm -rf /usr/share/man/man1/omxplayer.1
 EOF
-	touch "patch.flag"
-fi
+
 
 echo "Checking for OMX development headers"
 # These can either be supplied by dpkg or via rpi-update.

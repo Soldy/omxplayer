@@ -52,12 +52,10 @@ extern "C" {
 #include "OMXPlayerVideo.h"
 #include "OMXPlayerAudio.h"
 #include "OMXPlayerSubtitles.h"
-#include "OMXControl.h"
 #include "DllOMX.h"
 #include "Srt.h"
 #include "KeyConfig.h"
 #include "utils/Strprintf.h"
-#include "Keyboard.h"
 
 #include <string>
 #include <utility>
@@ -85,7 +83,6 @@ std::string       m_external_subtitles_path;
 bool              m_has_external_subtitles = false;
 std::string       m_font_path           = "/usr/share/fonts/truetype/freefont/FreeSans.ttf";
 std::string       m_italic_font_path    = "/usr/share/fonts/truetype/freefont/FreeSansOblique.ttf";
-std::string       m_dbus_name           = "org.mpris.MediaPlayer2.omxplayer";
 bool              m_asked_for_font      = false;
 bool              m_asked_for_italic_font = false;
 float             m_font_size           = 0.055f;
@@ -96,8 +93,6 @@ bool              m_Pause               = false;
 OMXReader         m_omx_reader;
 int               m_audio_index_use     = 0;
 OMXClock          *m_av_clock           = NULL;
-OMXControl        m_omxcontrol;
-Keyboard          *m_keyboard           = NULL;
 OMXAudioConfig    m_config_audio;
 OMXVideoConfig    m_config_video;
 OMXPacket         *m_omx_pkt            = NULL;
@@ -128,10 +123,6 @@ void sig_handler(int s)
   signal(SIGABRT, SIG_DFL);
   signal(SIGSEGV, SIG_DFL);
   signal(SIGFPE, SIG_DFL);
-  if (NULL != m_keyboard)
-  {
-     m_keyboard->Close();
-  }
   abort();
 }
 
@@ -554,7 +545,6 @@ int main(int argc, char *argv[])
   const int fps_opt         = 0x208;
   const int live_opt        = 0x205;
   const int layout_opt      = 0x206;
-  const int dbus_name_opt   = 0x209;
   const int loop_opt        = 0x20a;
   const int layer_opt       = 0x20b;
   const int no_keys_opt     = 0x20c;
@@ -622,7 +612,6 @@ int main(int argc, char *argv[])
     { "fps",          required_argument,  NULL,          fps_opt },
     { "live",         no_argument,        NULL,          live_opt },
     { "layout",       required_argument,  NULL,          layout_opt },
-    { "dbus_name",    required_argument,  NULL,          dbus_name_opt },
     { "loop",         no_argument,        NULL,          loop_opt },
     { "layer",        required_argument,  NULL,          layer_opt },
     { "alpha",        required_argument,  NULL,          alpha_opt },
@@ -856,9 +845,6 @@ int main(int argc, char *argv[])
         }
         break;
       }
-      case dbus_name_opt:
-        m_dbus_name = optarg;
-        break;
       case loop_opt:
         if(m_incr != 0)
             m_loop_from = m_incr;
@@ -993,22 +979,6 @@ int main(int argc, char *argv[])
     printf("Only %dM of gpu_mem is configured. Try running \"sudo raspi-config\" and ensure that \"memory_split\" has a value of %d or greater\n", gpu_mem, min_gpu_mem);
 
   m_av_clock = new OMXClock();
-  int control_err = m_omxcontrol.init(
-    m_av_clock,
-    &m_player_audio,
-    &m_player_subtitles,
-    &m_omx_reader,
-    m_dbus_name
-  );
-  if (false == m_no_keys)
-  {
-    m_keyboard = new Keyboard();
-  }
-  if (NULL != m_keyboard)
-  {
-    m_keyboard->setKeymap(keymap);
-    m_keyboard->setDbusName(m_dbus_name);
-  }
 
   if(!m_omx_reader.Open(m_filename.c_str(), m_dump_format, m_config_audio.is_live, m_timeout, m_cookie.c_str(), m_user_agent.c_str(), m_lavfdopts.c_str(), m_avdict.c_str()))
     goto do_exit;
@@ -1173,13 +1143,12 @@ int main(int argc, char *argv[])
       m_last_check_time = now;
     }
 
-     if (update) {
-       OMXControlResult result = control_err
-                               ? (OMXControlResult)(m_keyboard ? m_keyboard->getEvent() : KeyConfig::ACTION_BLANK)
-                               : m_omxcontrol.getEvent();
-       double oldPos, newPos;
-
-    switch(result.getKey())
+    double oldPos, newPos;
+    int ch[8];
+    int chnum = 0;
+    while((ch[chnum] = getchar()) != EOF) chnum++;
+    if (chnum > 1) ch[0] = ch[chnum - 1] | (ch[chnum - 2] << 8);
+    switch(ch[0])
     {
       case KeyConfig::ACTION_SHOW_INFO:
         m_tv_show_info = !m_tv_show_info;
@@ -1826,10 +1795,6 @@ do_exit:
   m_player_subtitles.Close();
   m_player_video.Close();
   m_player_audio.Close();
-  if (NULL != m_keyboard)
-  {
-    m_keyboard->Close();
-  }
 
   if(m_omx_pkt)
   {

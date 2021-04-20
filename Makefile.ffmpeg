@@ -5,12 +5,12 @@ CFLAGS=-D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DTARGET_POSIX -DTARGET_LI
 WORK=$(PWD)
 
 .PHONY : all
-all: checkout configure compile
+all: configure compile
 
 .PHONY : copy
 copy:
 	find ffmpeg -name '*.so*' -exec cp {} . \;
-	$(HOST)-strip *.so*
+	strip *.so*
 
 .PHONY : compile
 compile: 
@@ -22,14 +22,13 @@ configure:
 	CFLAGS="$(CFLAGS) ${INCLUDES}" \
 	LDFLAGS="" \
   ./configure \
-			--extra-cflags="-mfpu=vfp -mfloat-abi=$(FLOAT) -mno-apcs-stack-check -mstructure-size-boundary=32 -mno-sched-prolog" \
-			--enable-cross-compile \
+			--extra-cflags="-O3 -march=armv8-a -mfloat-abi=hard -mfpu=neon-fp-armv8" \
 			--enable-shared \
 			--disable-static \
-			--arch=arm \
-			--cpu=arm1176jzf-s \
+	o		--arch=arm \
+                        --enable-omx-rpi
+			--cpu=armv8-a \
 			--target-os=linux \
-			--disable-hwaccels \
 			--enable-parsers \
 			--disable-muxers \
 			--disable-filters \
@@ -242,7 +241,7 @@ configure:
 			--disable-decoder=idf \
 			--disable-decoder=hevc \
 			--enable-decoder=opus \
-			--cross-prefix=$(HOST)-
+
 
 .PHONY : clean
 clean:
@@ -254,6 +253,6 @@ checkout:
 
 .PHONY : install
 install:
-	cd ffmpeg; make -j9 DESTDIR="$(WORK)/ffmpeg_compiled" install
-	$(HOST)-strip ffmpeg_compiled/usr/local/lib/*.so
+	cd ffmpeg; make DESTDIR="$(WORK)/ffmpeg_compiled" install
+	strip ffmpeg_compiled/usr/local/lib/*.so
 
