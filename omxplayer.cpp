@@ -1372,17 +1372,6 @@ int main(int argc, char *argv[])
       case KeyConfig::ACTION_SEEK_BACK_LARGE:
         if(m_omx_reader.CanSeek()) m_incr = -600.0;
         break;
-      case KeyConfig::ACTION_SEEK_RELATIVE:
-          m_incr = result.getArg() * 1e-6;
-          break;
-      case KeyConfig::ACTION_SEEK_ABSOLUTE:
-          newPos = result.getArg() * 1e-6;
-          oldPos = m_av_clock->OMXMediaTime()*1e-6;
-          m_incr = newPos - oldPos;
-          break;
-      case KeyConfig::ACTION_SET_ALPHA:
-          m_player_video.SetAlpha(result.getArg());
-          break;
       case KeyConfig::ACTION_PLAY:
         m_Pause=false;
         if(m_has_subtitle)
@@ -1427,14 +1416,6 @@ int main(int argc, char *argv[])
             (t/3600), (t/60)%60, t%60, (dur/3600), (dur/60)%60, dur%60));
         }
         break;
-      case KeyConfig::ACTION_MOVE_VIDEO:
-        sscanf(result.getWinArg(), "%f %f %f %f", &m_config_video.dst_rect.x1, &m_config_video.dst_rect.y1, &m_config_video.dst_rect.x2, &m_config_video.dst_rect.y2);
-        m_player_video.SetVideoRect(m_config_video.src_rect, m_config_video.dst_rect);
-        break;
-      case KeyConfig::ACTION_CROP_VIDEO:
-        sscanf(result.getWinArg(), "%f %f %f %f", &m_config_video.src_rect.x1, &m_config_video.src_rect.y1, &m_config_video.src_rect.x2, &m_config_video.src_rect.y2);
-        m_player_video.SetVideoRect(m_config_video.src_rect, m_config_video.dst_rect);
-        break;
       case KeyConfig::ACTION_HIDE_VIDEO:
         // set alpha to minimum
         m_player_video.SetAlpha(0);
@@ -1442,19 +1423,6 @@ int main(int argc, char *argv[])
       case KeyConfig::ACTION_UNHIDE_VIDEO:
         // set alpha to maximum
         m_player_video.SetAlpha(255);
-        break;
-      case KeyConfig::ACTION_SET_ASPECT_MODE:
-        if (result.getWinArg()) {
-          if (!strcasecmp(result.getWinArg(), "letterbox"))
-            m_config_video.aspectMode = 1;
-          else if (!strcasecmp(result.getWinArg(), "fill"))
-            m_config_video.aspectMode = 2;
-          else if (!strcasecmp(result.getWinArg(), "stretch"))
-            m_config_video.aspectMode = 3;
-          else
-            m_config_video.aspectMode = 0;
-          m_player_video.SetVideoRect(m_config_video.aspectMode);
-        }
         break;
       case KeyConfig::ACTION_DECREASE_VOLUME:
         m_Volume -= 300;
@@ -1472,7 +1440,6 @@ int main(int argc, char *argv[])
         break;
       default:
         break;
-    }
     }
 
     if (idle)
