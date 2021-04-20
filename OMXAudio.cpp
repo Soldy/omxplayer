@@ -18,10 +18,8 @@
 * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#if (defined HAVE_CONFIG_H) && (!defined WIN32)
+#if (defined HAVE_CONFIG_H)
   #include "config.h"
-#elif defined(_WIN32)
-#include "system.h"
 #endif
 
 #include "OMXAudio.h"

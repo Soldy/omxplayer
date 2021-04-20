@@ -19,10 +19,8 @@
  *
  */
 
-#if (defined HAVE_CONFIG_H) && (!defined WIN32)
+#if (defined HAVE_CONFIG_H)
   #include "config.h"
-#elif defined(_WIN32)
-#include "system.h"
 #endif
 
 #include "OMXVideo.h"
@@ -43,6 +41,7 @@
 #define OMX_H264BASE_DECODER    OMX_VIDEO_DECODER
 #define OMX_H264MAIN_DECODER    OMX_VIDEO_DECODER
 #define OMX_H264HIGH_DECODER    OMX_VIDEO_DECODER
+#define OMX_H265_DECODER        OMX_VIDEO_DECODER
 #define OMX_MPEG4_DECODER       OMX_VIDEO_DECODER
 #define OMX_MSMPEG4V1_DECODER   OMX_VIDEO_DECODER
 #define OMX_MSMPEG4V2_DECODER   OMX_VIDEO_DECODER
@@ -387,6 +386,13 @@ bool COMXVideo::Open(OMXClock *clock, const OMXVideoConfig &config)
 
   switch (m_config.hints.codec)
   {
+    case AV_CODEC_ID_H264:
+    {
+        decoder_name = OMX_H265_DECODER;
+        m_codingType = OMX_VIDEO_CodingAVC;
+        m_video_codec_name = "omx-h265";
+        break;
+    }
     case AV_CODEC_ID_H264:
     {
       switch(m_config.hints.profile)
